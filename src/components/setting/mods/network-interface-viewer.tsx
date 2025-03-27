@@ -4,7 +4,7 @@ import { BaseDialog, DialogRef, Notice } from "@/components/base";
 import { getNetworkInterfacesInfo } from "@/services/cmds";
 import { alpha, Box, Button, Chip, IconButton } from "@mui/material";
 import { ContentCopyRounded } from "@mui/icons-material";
-import { writeText } from "@tauri-apps/api/clipboard";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 
 export const NetworkInterfaceViewer = forwardRef<DialogRef>((props, ref) => {
   const { t } = useTranslation();
@@ -24,7 +24,6 @@ export const NetworkInterfaceViewer = forwardRef<DialogRef>((props, ref) => {
   useEffect(() => {
     if (!open) return;
     getNetworkInterfacesInfo().then((res) => {
-      console.log(res);
       setNetworkInterfaces(res);
     });
   }, [open]);
@@ -48,7 +47,7 @@ export const NetworkInterfaceViewer = forwardRef<DialogRef>((props, ref) => {
           </Box>
         </Box>
       }
-      contentSx={{ width: 450, maxHeight: 330 }}
+      contentSx={{ width: 450 }}
       disableOk
       cancelBtn={t("Close")}
       onCancel={() => setOpen(false)}
@@ -67,7 +66,7 @@ export const NetworkInterfaceViewer = forwardRef<DialogRef>((props, ref) => {
                         label={t("Ip Address")}
                         content={address.V4.ip}
                       />
-                    )
+                    ),
                 )}
                 <AddressDisplay
                   label={t("Mac Address")}
@@ -85,7 +84,7 @@ export const NetworkInterfaceViewer = forwardRef<DialogRef>((props, ref) => {
                         label={t("Ip Address")}
                         content={address.V6.ip}
                       />
-                    )
+                    ),
                 )}
                 <AddressDisplay
                   label={t("Mac Address")}
@@ -115,7 +114,7 @@ const AddressDisplay = (props: { label: string; content: string }) => {
       <Box
         sx={({ palette }) => ({
           borderRadius: "8px",
-          padding: "2px",
+          padding: "2px 2px 2px 8px",
           background:
             palette.mode === "dark"
               ? alpha(palette.background.paper, 0.3)

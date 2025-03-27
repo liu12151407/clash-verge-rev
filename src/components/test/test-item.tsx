@@ -3,24 +3,16 @@ import { useLockFn } from "ahooks";
 import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  Box,
-  Typography,
-  Divider,
-  MenuItem,
-  Menu,
-  styled,
-  alpha,
-} from "@mui/material";
+import { Box, Divider, MenuItem, Menu, styled, alpha } from "@mui/material";
 import { BaseLoading } from "@/components/base";
 import { LanguageRounded } from "@mui/icons-material";
 import { Notice } from "@/components/base";
 import { TestBox } from "./test-box";
 import delayManager from "@/services/delay";
 import { cmdTestDelay, downloadIconCache } from "@/services/cmds";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
-
+import { UnlistenFn } from "@tauri-apps/api/event";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { useListen } from "@/hooks/use-listen";
 interface Props {
   id: string;
   itemData: IVergeTestItem;
@@ -28,7 +20,7 @@ interface Props {
   onDelete: (uid: string) => void;
 }
 
-let eventListener: UnlistenFn | null = null;
+let eventListener: UnlistenFn = () => {};
 
 export const TestItem = (props: Props) => {
   const { itemData, onEdit, onDelete: onDeleteItem } = props;
@@ -47,6 +39,7 @@ export const TestItem = (props: Props) => {
   const [delay, setDelay] = useState(-1);
   const { uid, name, icon, url } = itemData;
   const [iconCachePath, setIconCachePath] = useState("");
+  const { addListener } = useListen();
 
   useEffect(() => {
     initIconCachePath();
@@ -90,17 +83,15 @@ export const TestItem = (props: Props) => {
   ];
 
   const listenTsetEvent = async () => {
-    if (eventListener !== null) {
-      eventListener();
-    }
-    eventListener = await listen("verge://test-all", () => {
+    eventListener();
+    eventListener = await addListener("verge://test-all", () => {
       onDelay();
     });
   };
 
   useEffect(() => {
     listenTsetEvent();
-  }, []);
+  }, [url]);
 
   return (
     <Box
@@ -150,11 +141,7 @@ export const TestItem = (props: Props) => {
             </Box>
           )}
 
-          <Box sx={{ display: "flex", justifyContent: "center" }}>
-            <Typography variant="h6" component="h2" noWrap title={name}>
-              {name}
-            </Typography>
-          </Box>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>{name}</Box>
         </Box>
         <Divider sx={{ marginTop: "8px" }} />
         <Box

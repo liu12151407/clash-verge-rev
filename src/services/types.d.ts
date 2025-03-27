@@ -32,6 +32,7 @@ interface IConfigData {
   "tproxy-port": number;
   "external-controller": string;
   secret: string;
+  "unified-delay": boolean;
   tun: {
     stack: string;
     device: string;
@@ -40,6 +41,31 @@ interface IConfigData {
     "dns-hijack": string[];
     "strict-route": boolean;
     mtu: number;
+  };
+  dns?: {
+    enable?: boolean;
+    listen?: string;
+    "enhanced-mode"?: "fake-ip" | "redir-host";
+    "fake-ip-range"?: string;
+    "fake-ip-filter"?: string[];
+    "fake-ip-filter-mode"?: "blacklist" | "whitelist";
+    "prefer-h3"?: boolean;
+    "respect-rules"?: boolean;
+    nameserver?: string[];
+    fallback?: string[];
+    "default-nameserver"?: string[];
+    "proxy-server-nameserver"?: string[];
+    "direct-nameserver"?: string[];
+    "direct-nameserver-follow-policy"?: boolean;
+    "nameserver-policy"?: Record<string, any>;
+    "use-hosts"?: boolean;
+    "use-system-hosts"?: boolean;
+    "fallback-filter"?: {
+      geoip?: boolean;
+      "geoip-code"?: string;
+      ipcidr?: string[];
+      domain?: string[];
+    };
   };
 }
 
@@ -55,10 +81,13 @@ interface IProxyItem {
   udp: boolean;
   xudp: boolean;
   tfo: boolean;
+  mptcp: boolean;
+  smux: boolean;
   history: {
     time: string;
     delay: number;
   }[];
+  testUrl?: string;
   all?: string[];
   now?: string;
   hidden?: boolean;
@@ -116,6 +145,7 @@ interface IConnectionsItem {
     sourcePort: string;
     destinationPort: string;
     destinationIP?: string;
+    remoteDestination?: string;
     process?: string;
     processPath?: string;
   };
@@ -466,6 +496,7 @@ interface IProxyVlessConfig extends IProxyBaseConfig {
   fingerprint?: string;
   servername?: string;
   "client-fingerprint"?: ClientFingerprint;
+  smux?: boolean;
 }
 // vmess
 interface IProxyVmessConfig extends IProxyBaseConfig {
@@ -494,6 +525,7 @@ interface IProxyVmessConfig extends IProxyBaseConfig {
   "global-padding"?: boolean;
   "authenticated-length"?: boolean;
   "client-fingerprint"?: ClientFingerprint;
+  smux?: boolean;
 }
 interface WireGuardPeerOptions {
   server?: string;
@@ -602,6 +634,7 @@ interface IProxyShadowsocksConfig extends IProxyBaseConfig {
   "udp-over-tcp"?: boolean;
   "udp-over-tcp-version"?: number;
   "client-fingerprint"?: ClientFingerprint;
+  smux?: boolean;
 }
 // shadowsocksR
 interface IProxyshadowsocksRConfig extends IProxyBaseConfig {
@@ -685,8 +718,13 @@ interface IProxyConfig
 interface IVergeConfig {
   app_log_level?: "trace" | "debug" | "info" | "warn" | "error" | string;
   language?: string;
-  tray_event?: "main_window" | "system_proxy" | "tun_mode" | string;
-  env_type?: "bash" | "cmd" | "powershell" | string;
+  tray_event?:
+    | "main_window"
+    | "tray_menu"
+    | "system_proxy"
+    | "tun_mode"
+    | string;
+  env_type?: "bash" | "cmd" | "powershell" | "fish" | string;
   startup_script?: string;
   start_page?: string;
   clash_core?: string;
@@ -699,11 +737,16 @@ interface IVergeConfig {
   common_tray_icon?: boolean;
   sysproxy_tray_icon?: boolean;
   tun_tray_icon?: boolean;
+  enable_tray_speed?: boolean;
+  enable_tray_icon?: boolean;
   enable_tun_mode?: boolean;
+  enable_auto_light_weight_mode?: boolean;
+  auto_light_weight_minutes?: number;
   enable_auto_launch?: boolean;
-  enable_service_mode?: boolean;
   enable_silent_start?: boolean;
   enable_system_proxy?: boolean;
+  enable_global_hotkey?: boolean;
+  enable_dns_settings?: boolean;
   proxy_auto_config?: boolean;
   pac_file_content?: string;
   enable_random_port?: boolean;
@@ -717,6 +760,7 @@ interface IVergeConfig {
   verge_socks_enabled?: boolean;
   verge_http_enabled?: boolean;
   enable_proxy_guard?: boolean;
+  enable_bypass_check?: boolean;
   use_default_bypass?: boolean;
   proxy_guard_duration?: number;
   system_proxy_bypass?: string;
@@ -742,4 +786,23 @@ interface IVergeConfig {
   auto_log_clean?: 0 | 1 | 2 | 3;
   proxy_layout_column?: number;
   test_list?: IVergeTestItem[];
+  webdav_url?: string;
+  webdav_username?: string;
+  webdav_password?: string;
+  home_cards?: Record<string, boolean>;
+}
+
+interface IWebDavFile {
+  filename: string;
+  href: string;
+  last_modified: string;
+  content_length: number;
+  content_type: string;
+  tag: string;
+}
+
+interface IWebDavConfig {
+  url: string;
+  username: string;
+  password: string;
 }

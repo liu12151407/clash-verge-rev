@@ -22,7 +22,7 @@ export const TunViewer = forwardRef<DialogRef>((props, ref) => {
 
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState({
-    stack: "gvisor",
+    stack: "mixed",
     device: "Mihomo",
     autoRoute: true,
     autoDetectInterface: true,
@@ -64,7 +64,7 @@ export const TunViewer = forwardRef<DialogRef>((props, ref) => {
           ...(old! || {}),
           tun,
         }),
-        false
+        false,
       );
       try {
         await enhanceProfiles();
@@ -112,7 +112,7 @@ export const TunViewer = forwardRef<DialogRef>((props, ref) => {
                   ...(old! || {}),
                   tun,
                 }),
-                false
+                false,
               );
             }}
           >

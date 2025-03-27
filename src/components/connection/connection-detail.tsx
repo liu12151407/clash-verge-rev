@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { forwardRef, useImperativeHandle, useState } from "react";
 import { useLockFn } from "ahooks";
-import { Box, Button, Snackbar } from "@mui/material";
+import { Box, Button, Snackbar, useTheme } from "@mui/material";
 import { deleteConnection } from "@/services/api";
 import parseTraffic from "@/utils/parse-traffic";
 import { t } from "i18next";
@@ -14,6 +14,7 @@ export const ConnectionDetail = forwardRef<ConnectionDetailRef>(
   (props, ref) => {
     const [open, setOpen] = useState(false);
     const [detail, setDetail] = useState<IConnectionsItem>(null!);
+    const theme = useTheme();
 
     useImperativeHandle(ref, () => ({
       open: (detail: IConnectionsItem) => {
@@ -30,6 +31,15 @@ export const ConnectionDetail = forwardRef<ConnectionDetailRef>(
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         open={open}
         onClose={onClose}
+        sx={{
+          ".MuiSnackbarContent-root": {
+            maxWidth: "520px",
+            maxHeight: "480px",
+            overflowY: "auto",
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
+          },
+        }}
         message={
           detail ? (
             <InnerConnectionDetail data={detail} onClose={onClose} />
@@ -37,7 +47,7 @@ export const ConnectionDetail = forwardRef<ConnectionDetailRef>(
         }
       />
     );
-  }
+  },
 );
 
 interface InnerProps {
@@ -47,11 +57,15 @@ interface InnerProps {
 
 const InnerConnectionDetail = ({ data, onClose }: InnerProps) => {
   const { metadata, rulePayload } = data;
+  const theme = useTheme();
   const chains = [...data.chains].reverse().join(" / ");
   const rule = rulePayload ? `${data.rule}(${rulePayload})` : data.rule;
   const host = metadata.host
     ? `${metadata.host}:${metadata.destinationPort}`
-    : `${metadata.destinationIP}:${metadata.destinationPort}`;
+    : `${metadata.remoteDestination}:${metadata.destinationPort}`;
+  const Destination = metadata.destinationIP
+    ? metadata.destinationIP
+    : metadata.remoteDestination;
 
   const information = [
     { label: t("Host"), value: host },
@@ -65,7 +79,10 @@ const InnerConnectionDetail = ({ data, onClose }: InnerProps) => {
       label: t("UL Speed"),
       value: parseTraffic(data.curUpload ?? -1).join(" ") + "/s",
     },
-    { label: t("Chains"), value: chains },
+    {
+      label: t("Chains"),
+      value: chains,
+    },
     { label: t("Rule"), value: rule },
     {
       label: t("Process"),
@@ -78,17 +95,19 @@ const InnerConnectionDetail = ({ data, onClose }: InnerProps) => {
       label: t("Source"),
       value: `${metadata.sourceIP}:${metadata.sourcePort}`,
     },
-    { label: t("Destination IP"), value: metadata.destinationIP },
+    { label: t("Destination"), value: Destination },
+    { label: t("DestinationPort"), value: `${metadata.destinationPort}` },
     { label: t("Type"), value: `${metadata.type}(${metadata.network})` },
   ];
 
   const onDelete = useLockFn(async () => deleteConnection(data.id));
 
   return (
-    <Box sx={{ userSelect: "text" }}>
+    <Box sx={{ userSelect: "text", color: theme.palette.text.secondary }}>
       {information.map((each) => (
         <div key={each.label}>
-          <b>{each.label}</b>: <span>{each.value}</span>
+          <b>{each.label}</b>
+          <span style={{ wordBreak: "break-all", color: theme.palette.text.primary }}>: {each.value}</span>
         </div>
       ))}
 

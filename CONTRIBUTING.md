@@ -17,15 +17,28 @@ If you're a Windows user, you may need to perform some additional steps:
 - Make sure to add Rust and Node.js to your system's PATH. This is usually done during the installation process, but you can verify and manually add them if necessary.
 - The gnu `patch` tool should be installed
 
-### Install Node.js Packages
-
-After installing Rust and Node.js, install the necessary Node.js packages:
+When you setup `Rust` environment, Only use toolchain with `Windows MSVC` , to change settings follow command:
 
 ```shell
-pnpm i
+rustup target add x86_64-pc-windows-msvc
+rustup set default-host x86_64-pc-windows-msvc
 ```
 
-### Download the Clash Binary
+### Install Node.js Package
+
+After installing Rust and Node.js, install the necessary Node.js and Node Package Manager:
+
+```shell
+npm install pnpm -g
+```
+
+### Install Dependencies
+
+```shell
+pnpm install
+```
+
+### Download the Mihomo Core Binary
 
 You have two options for downloading the clash binary:
 
@@ -35,7 +48,7 @@ You have two options for downloading the clash binary:
   # Use '--force' to force update to the latest version
   # pnpm run check --force
   ```
-- Manually download it from the [Clash Meta release](https://github.com/MetaCubeX/Clash.Meta/releases). After downloading, rename the binary according to the [Tauri configuration](https://tauri.app/v1/api/config#bundleconfig.externalbin).
+- Manually download it from the [Mihomo release](https://github.com/MetaCubeX/mihomo/releases). After downloading, rename the binary according to the [Tauri configuration](https://tauri.app/v1/api/config#bundleconfig.externalbin).
 
 ### Run the Development Server
 
@@ -49,10 +62,36 @@ pnpm dev:diff
 
 ### Build the Project
 
-If you want to build the project, use:
+To build this project:
 
 ```shell
 pnpm build
+```
+
+For a faster build, use the following command
+
+```shell
+pnpm build:fast
+```
+
+This uses Rust's fast-release profile which significantly reduces compilation time by disabling optimization and LTO. The resulting binary will be larger and less performant than the standard build, but it's useful for testing changes quickly.
+
+The `Artifacts` will display in the `log` in the Terminal.
+
+### Build clean
+
+To clean rust build:
+
+```shell
+pnpm clean
+```
+
+### Portable Version (Windows Only)
+
+To package portable version after the build:
+
+```shell
+pnpm portable
 ```
 
 ## Contributing Your Changes

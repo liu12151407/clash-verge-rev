@@ -71,7 +71,6 @@ impl IProfiles {
         if let Some(current) = patch.current {
             let items = self.items.as_ref().unwrap();
             let some_uid = Some(current);
-
             if items.iter().any(|e| e.uid == some_uid) {
                 self.current = some_uid;
             }
@@ -111,6 +110,7 @@ impl IProfiles {
         if item.uid.is_none() {
             bail!("the uid should not be null");
         }
+        let uid = item.uid.clone();
 
         // save the file data
         // move the field value after save
@@ -128,6 +128,12 @@ impl IProfiles {
                 .with_context(|| format!("failed to write to file \"{}\"", file))?;
         }
 
+        if self.current.is_none()
+            && (item.itype == Some("remote".to_string()) || item.itype == Some("local".to_string()))
+        {
+            self.current = uid;
+        }
+
         if self.items.is_none() {
             self.items = Some(vec![]);
         }
@@ -135,6 +141,7 @@ impl IProfiles {
         if let Some(items) = self.items.as_mut() {
             items.push(item)
         }
+
         self.save_file()
     }
 
@@ -355,10 +362,15 @@ impl IProfiles {
         }
         // delete the original uid
         if current == uid {
-            self.current = match !items.is_empty() {
-                true => items[0].uid.clone(),
-                false => None,
-            };
+            self.current = None;
+            for item in items.iter() {
+                if item.itype == Some("remote".to_string())
+                    || item.itype == Some("local".to_string())
+                {
+                    self.current = item.uid.clone();
+                    break;
+                }
+            }
         }
 
         self.items = Some(items);
@@ -451,5 +463,26 @@ impl IProfiles {
             }
             _ => None,
         }
+    }
+
+    /// 判断profile是否是current指向的
+    pub fn is_current_profile_index(&self, index: String) -> bool {
+        self.current == Some(index)
+    }
+
+    /// 获取所有的profiles(uid，名称)
+    pub fn all_profile_uid_and_name(&self) -> Option<Vec<(String, String)>> {
+        self.items.as_ref().map(|items| {
+            items
+                .iter()
+                .filter_map(|e| {
+                    if let (Some(uid), Some(name)) = (e.uid.clone(), e.name.clone()) {
+                        Some((uid, name))
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
     }
 }

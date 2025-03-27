@@ -1,9 +1,8 @@
-pub mod clash_api;
+pub mod backup;
 #[allow(clippy::module_inception)]
 mod core;
 pub mod handle;
 pub mod hotkey;
-pub mod logger;
 pub mod service;
 pub mod sysopt;
 pub mod timer;

@@ -1,5 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import { getClashInfo } from "./cmds";
+import { invoke } from "@tauri-apps/api/core";
+import { useLockFn } from "ahooks";
 
 let axiosIns: AxiosInstance = null!;
 
@@ -49,12 +51,6 @@ export const getClashConfig = async () => {
   return instance.get("/configs") as Promise<IConfigData>;
 };
 
-/// Update current configs
-export const updateConfigs = async (config: Partial<IConfigData>) => {
-  const instance = await getAxios();
-  return instance.patch("/configs", config);
-};
-
 /// Update geo data
 export const updateGeoData = async () => {
   const instance = await getAxios();
@@ -78,16 +74,16 @@ export const getRules = async () => {
 export const getProxyDelay = async (
   name: string,
   url?: string,
-  timeout?: number
+  timeout?: number,
 ) => {
   const params = {
     timeout: timeout || 10000,
-    url: url || "http://1.1.1.1",
+    url: url || "http://cp.cloudflare.com/generate_204",
   };
   const instance = await getAxios();
   const result = await instance.get(
     `/proxies/${encodeURIComponent(name)}/delay`,
-    { params }
+    { params },
   );
   return result as any as { delay: number };
 };
@@ -100,13 +96,20 @@ export const updateProxy = async (group: string, proxy: string) => {
 
 // get proxy
 export const getProxiesInner = async () => {
-  const instance = await getAxios();
-  const response = await instance.get<any, any>("/proxies");
-  return (response?.proxies || {}) as Record<string, IProxyItem>;
+  const response = await invoke<{ proxies: Record<string, IProxyItem> }>(
+    "get_proxies",
+  );
+  return response.proxies as Record<string, IProxyItem>;
 };
 
 /// Get the Proxy information
-export const getProxies = async () => {
+export const getProxies = async (): Promise<{
+  global: IProxyGroupItem;
+  direct: IProxyItem;
+  groups: IProxyGroupItem[];
+  records: Record<string, IProxyItem>;
+  proxies: IProxyItem[];
+}> => {
   const [proxyRecord, providerRecord] = await Promise.all([
     getProxiesInner(),
     getProxyProviders(),
@@ -114,8 +117,8 @@ export const getProxies = async () => {
   // provider name map
   const providerMap = Object.fromEntries(
     Object.entries(providerRecord).flatMap(([provider, item]) =>
-      item.proxies.map((p) => [p.name, { ...p, provider }])
-    )
+      item.proxies.map((p) => [p.name, { ...p, provider }]),
+    ),
   );
 
   // compatible with proxy-providers
@@ -128,6 +131,8 @@ export const getProxies = async () => {
       udp: false,
       xudp: false,
       tfo: false,
+      mptcp: false,
+      smux: false,
       history: [],
     };
   };
@@ -158,7 +163,7 @@ export const getProxies = async () => {
         }
         return acc;
       },
-      []
+      [],
     );
 
     let globalNames = new Set(globalGroups.map((each) => each.name));
@@ -171,8 +176,8 @@ export const getProxies = async () => {
 
   const proxies = [direct, reject].concat(
     Object.values(proxyRecord).filter(
-      (p) => !p.all?.length && p.name !== "DIRECT" && p.name !== "REJECT"
-    )
+      (p) => !p.all?.length && p.name !== "DIRECT" && p.name !== "REJECT",
+    ),
   );
 
   const _global: IProxyGroupItem = {
@@ -185,19 +190,16 @@ export const getProxies = async () => {
 
 // get proxy providers
 export const getProxyProviders = async () => {
-  const instance = await getAxios();
-  const response = await instance.get<any, any>("/providers/proxies");
-
-  const providers = (response.providers || {}) as Record<
-    string,
-    IProxyProviderItem
-  >;
+  const response = await invoke<{
+    providers: Record<string, IProxyProviderItem>;
+  }>("get_providers_proxies");
+  const providers = response.providers as Record<string, IProxyProviderItem>;
 
   return Object.fromEntries(
     Object.entries(providers).filter(([key, item]) => {
       const type = item.vehicleType.toLowerCase();
       return type === "http" || type === "file";
-    })
+    }),
   );
 };
 
@@ -214,7 +216,7 @@ export const getRuleProviders = async () => {
     Object.entries(providers).filter(([key, item]) => {
       const type = item.vehicleType.toLowerCase();
       return type === "http" || type === "file";
-    })
+    }),
   );
 };
 
@@ -222,7 +224,7 @@ export const getRuleProviders = async () => {
 export const providerHealthCheck = async (name: string) => {
   const instance = await getAxios();
   return instance.get(
-    `/providers/proxies/${encodeURIComponent(name)}/healthcheck`
+    `/providers/proxies/${encodeURIComponent(name)}/healthcheck`,
   );
 };
 
@@ -251,25 +253,44 @@ export const deleteConnection = async (id: string) => {
 // Close all connections
 export const closeAllConnections = async () => {
   const instance = await getAxios();
-  await instance.delete<any, any>(`/connections`);
+  await instance.delete("/connections");
 };
 
 // Get Group Proxy Delays
 export const getGroupProxyDelays = async (
   groupName: string,
   url?: string,
-  timeout?: number
+  timeout?: number,
 ) => {
   const params = {
     timeout: timeout || 10000,
-    url: url || "http://1.1.1.1",
+    url: url || "http://cp.cloudflare.com/generate_204",
   };
-  const instance = await getAxios();
-  const result = await instance.get(
-    `/group/${encodeURIComponent(groupName)}/delay`,
-    { params }
+
+  console.log(
+    `[API] 获取代理组延迟，组: ${groupName}, URL: ${params.url}, 超时: ${params.timeout}ms`,
   );
-  return result as any as Record<string, number>;
+
+  try {
+    const instance = await getAxios();
+    console.log(
+      `[API] 发送HTTP请求: GET /group/${encodeURIComponent(groupName)}/delay`,
+    );
+
+    const result = await instance.get(
+      `/group/${encodeURIComponent(groupName)}/delay`,
+      { params },
+    );
+
+    console.log(
+      `[API] 获取代理组延迟成功，组: ${groupName}, 结果数量:`,
+      Object.keys(result || {}).length,
+    );
+    return result as any as Record<string, number>;
+  } catch (error) {
+    console.error(`[API] 获取代理组延迟失败，组: ${groupName}`, error);
+    throw error;
+  }
 };
 
 // Is debug enabled
@@ -291,4 +312,23 @@ export const gc = async () => {
   } catch (error) {
     console.error(`Error gcing: ${error}`);
   }
+};
+
+// Get current IP and geolocation information
+export const getIpInfo = async () => {
+  // 使用axios直接请求IP.sb的API，不通过clash代理
+  const response = await axios.get("https://api.ip.sb/geoip");
+  return response.data as {
+    ip: string;
+    country_code: string;
+    country: string;
+    region: string;
+    city: string;
+    organization: string;
+    asn: number;
+    asn_organization: string;
+    longitude: number;
+    latitude: number;
+    timezone: string;
+  };
 };

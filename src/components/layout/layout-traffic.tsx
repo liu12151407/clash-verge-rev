@@ -8,11 +8,10 @@ import {
 import { useClashInfo } from "@/hooks/use-clash";
 import { useVerge } from "@/hooks/use-verge";
 import { TrafficGraph, type TrafficRef } from "./traffic-graph";
-import { useLogData } from "@/hooks/use-log-data";
 import { useVisibility } from "@/hooks/use-visibility";
 import parseTraffic from "@/utils/parse-traffic";
 import useSWRSubscription from "swr/subscription";
-import { createSockette } from "@/utils/websocket";
+import { createSockette, createAuthSockette } from "@/utils/websocket";
 import { useTranslation } from "react-i18next";
 import { isDebugEnabled, gc } from "@/services/api";
 
@@ -39,11 +38,6 @@ export const LayoutTraffic = () => {
     return () => {};
   }, [isDebug]);
 
-  // https://swr.vercel.app/docs/subscription#deduplication
-  // useSWRSubscription auto deduplicates to one subscription per key per entire app
-  // So we can simply invoke it here acting as preconnect
-  useLogData();
-
   const { data: traffic = { up: 0, down: 0 } } = useSWRSubscription<
     ITrafficItem,
     any,
@@ -53,29 +47,47 @@ export const LayoutTraffic = () => {
     (_key, { next }) => {
       const { server = "", secret = "" } = clashInfo!;
 
-      const s = createSockette(
-        `ws://${server}/traffic?token=${encodeURIComponent(secret)}`,
-        {
-          onmessage(event) {
-            const data = JSON.parse(event.data) as ITrafficItem;
-            trafficRef.current?.appendData(data);
-            next(null, data);
-          },
-          onerror(event) {
-            this.close();
-            next(event, { up: 0, down: 0 });
-          },
-        }
-      );
+      if (!server) {
+        console.warn("[Traffic] 服务器地址为空，无法建立连接");
+        next(null, { up: 0, down: 0 });
+        return () => {};
+      }
+
+      console.log(`[Traffic] 正在连接: ${server}/traffic`);
+
+      const s = createAuthSockette(`${server}/traffic`, secret, {
+        timeout: 8000, // 8秒超时
+        onmessage(event) {
+          const data = JSON.parse(event.data) as ITrafficItem;
+          trafficRef.current?.appendData(data);
+          next(null, data);
+        },
+        onerror(event) {
+          console.error("[Traffic] WebSocket 连接错误", event);
+          this.close();
+          next(null, { up: 0, down: 0 });
+        },
+        onclose(event) {
+          console.log("[Traffic] WebSocket 连接关闭", event);
+        },
+        onopen(event) {
+          console.log("[Traffic] WebSocket 连接已建立");
+        },
+      });
 
       return () => {
-        s.close();
+        console.log("[Traffic] 清理WebSocket连接");
+        try {
+          s.close();
+        } catch (e) {
+          console.error("[Traffic] 关闭连接时出错", e);
+        }
       };
     },
     {
       fallbackData: { up: 0, down: 0 },
       keepPreviousData: true,
-    }
+    },
   );
 
   /* --------- meta memory information --------- */
@@ -91,28 +103,46 @@ export const LayoutTraffic = () => {
     (_key, { next }) => {
       const { server = "", secret = "" } = clashInfo!;
 
-      const s = createSockette(
-        `ws://${server}/memory?token=${encodeURIComponent(secret)}`,
-        {
-          onmessage(event) {
-            const data = JSON.parse(event.data) as MemoryUsage;
-            next(null, data);
-          },
-          onerror(event) {
-            this.close();
-            next(event, { inuse: 0 });
-          },
-        }
-      );
+      if (!server) {
+        console.warn("[Memory] 服务器地址为空，无法建立连接");
+        next(null, { inuse: 0 });
+        return () => {};
+      }
+
+      console.log(`[Memory] 正在连接: ${server}/memory`);
+
+      const s = createAuthSockette(`${server}/memory`, secret, {
+        timeout: 8000, // 8秒超时
+        onmessage(event) {
+          const data = JSON.parse(event.data) as MemoryUsage;
+          next(null, data);
+        },
+        onerror(event) {
+          console.error("[Memory] WebSocket 连接错误", event);
+          this.close();
+          next(null, { inuse: 0 });
+        },
+        onclose(event) {
+          console.log("[Memory] WebSocket 连接关闭", event);
+        },
+        onopen(event) {
+          console.log("[Memory] WebSocket 连接已建立");
+        },
+      });
 
       return () => {
-        s.close();
+        console.log("[Memory] 清理WebSocket连接");
+        try {
+          s.close();
+        } catch (e) {
+          console.error("[Memory] 关闭连接时出错", e);
+        }
       };
     },
     {
       fallbackData: { inuse: 0 },
       keepPreviousData: true,
-    }
+    },
   );
 
   const [up, upUnit] = parseTraffic(traffic.up);

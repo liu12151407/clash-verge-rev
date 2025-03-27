@@ -21,6 +21,7 @@ import delayManager from "@/services/delay";
 
 interface Props {
   sx?: SxProps;
+  url?: string;
   groupName: string;
   headState: HeadState;
   onLocation: () => void;
@@ -29,7 +30,7 @@ interface Props {
 }
 
 export const ProxyHead = (props: Props) => {
-  const { sx = {}, groupName, headState, onHeadState } = props;
+  const { sx = {}, url, groupName, headState, onHeadState } = props;
 
   const { showType, sortType, filterText, textState, testUrl } = headState;
 
@@ -45,7 +46,10 @@ export const ProxyHead = (props: Props) => {
   const { verge } = useVerge();
 
   useEffect(() => {
-    delayManager.setUrl(groupName, testUrl || verge?.default_latency_test!);
+    delayManager.setUrl(
+      groupName,
+      testUrl || url || verge?.default_latency_test!,
+    );
   }, [groupName, testUrl, verge?.default_latency_test]);
 
   return (
@@ -53,7 +57,7 @@ export const ProxyHead = (props: Props) => {
       <IconButton
         size="small"
         color="inherit"
-        title={t("Location")}
+        title={t("locate")}
         onClick={props.onLocation}
       >
         <MyLocationRounded />
@@ -64,8 +68,10 @@ export const ProxyHead = (props: Props) => {
         color="inherit"
         title={t("Delay check")}
         onClick={() => {
+          console.log(`[ProxyHead] 点击延迟测试按钮，组: ${groupName}`);
           // Remind the user that it is custom test url
           if (testUrl?.trim() && textState !== "filter") {
+            console.log(`[ProxyHead] 使用自定义测试URL: ${testUrl}`);
             onHeadState({ textState: "url" });
           }
           props.onCheckDelay();
